@@ -1,5 +1,6 @@
-use crate::network::EventLoop;
+use crate::network::{Client, EventLoop};
 pub enum FriendCommand {}
 impl EventLoop {
-    async fn handle_friend_command(&mut self, command: FriendCommand) {}
+    pub async fn handle_friend_command(&mut self, command: FriendCommand) {}
 }
+impl Client {}
