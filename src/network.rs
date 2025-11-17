@@ -16,6 +16,10 @@ use crate::network::{
 pub mod chat;
 pub mod friends;
 
+pub enum Command {
+    ChatCommand(ChatCommand),
+    FriendCommand(FriendCommand),
+}
 pub(crate) async fn new() -> (EventLoop, Client, mpsc::Receiver<Event>) {
     // TODO: Confiugre properly & handle errors
     let mut swarm = libp2p::SwarmBuilder::with_new_identity()
@@ -51,14 +55,12 @@ pub(crate) async fn new() -> (EventLoop, Client, mpsc::Receiver<Event>) {
     swarm
         .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
         .unwrap();
-    let (chat_tx, chat_rx) = mpsc::channel(100);
-    let (friend_tx, friend_rx) = mpsc::channel(100);
+    let (command_tx, command_rx) = mpsc::channel(100);
     let (event_tx, event_rx) = mpsc::channel(100);
     let client = Client {
-        chat_sender: chat_tx,
-        friend_sender: friend_tx,
+        command_sender: command_tx,
     };
-    let event_loop = EventLoop::new(swarm, chat_rx, friend_rx, event_tx);
+    let event_loop = EventLoop::new(swarm, command_rx, event_tx);
     (event_loop, client, event_rx)
 }
 #[derive(Debug)]
@@ -74,26 +76,22 @@ struct Behaviour {
 }
 pub struct EventLoop {
     swarm: Swarm<Behaviour>,
-    chat: mpsc::Receiver<ChatCommand>,
-    friends: mpsc::Receiver<FriendCommand>,
+    command_rx: mpsc::Receiver<Command>
     event_sender: mpsc::Sender<Event>,
 }
 #[derive(Clone)]
 pub(crate) struct Client {
-    pub chat_sender: mpsc::Sender<ChatCommand>,
-    pub friend_sender: mpsc::Sender<FriendCommand>,
+    pub command_sender: mpsc::Sender<Command>,
 }
 impl EventLoop {
     fn new(
         swarm: Swarm<Behaviour>,
-        chat: mpsc::Receiver<ChatCommand>,
-        friends: mpsc::Receiver<FriendCommand>,
+        command_rx: mpsc::Receiver<Command>,
         event_sender: mpsc::Sender<Event>,
     ) -> Self {
         EventLoop {
             swarm,
-            chat,
-            friends,
+            command_rx,
             event_sender,
         }
     }
@@ -101,8 +99,12 @@ impl EventLoop {
         loop {
             tokio::select! {
                 event = self.swarm.select_next_some() => self.handle_event(event).await,
-                Some(chat_command) = self.chat.recv() => self.handle_chat_command(chat_command).await,
-                Some(friend_command) = self.friends.recv() => self.handle_friend_command(friend_command).await
+                Some(command) = self.command_rx.recv() => {
+                    match command { 
+                        Command::ChatCommand(chat) => self.handle_chat_command(chat).await,
+                        Command::FriendCommand(friend) => self.handle_friend_command(friend).await,
+                    }
+                },
             }
         }
     }

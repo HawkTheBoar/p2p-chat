@@ -1,7 +1,7 @@
+use crate::network::Command;
 use crate::network::{Client, EventLoop};
 use libp2p::PeerId;
 use serde::{Deserialize, Serialize};
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DirectMessageRequest(pub Message);
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,11 +41,11 @@ impl EventLoop {
 }
 impl Client {
     pub async fn send_message(&mut self, peer: PeerId, message: Message) {
-        self.chat_sender
-            .send(ChatCommand::SendMessage {
+        self.command_sender
+            .send(Command::ChatCommand(ChatCommand::SendMessage {
                 receiver: peer,
                 message,
-            })
+            }))
             .await
             .expect("To send message");
     }
