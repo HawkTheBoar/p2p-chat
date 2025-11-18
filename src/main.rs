@@ -24,6 +24,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_env_filter(EnvFilter::from_default_env())
         .try_init();
 
+    let mut stdin = io::BufReader::new(io::stdin()).lines();
+
+    let name = {
+        println!("Input your name:");
+        stdin.next_line().await?.unwrap_or("Anonymous".to_string())
+    };
     let (event_loop, mut client, mut network_event) = network::new().await;
 
     tokio::spawn(event_loop.run());
@@ -31,7 +37,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Enter messages via STDIN and they will be sent to connected peers using Gossipsub");
     loop {
         // Read full lines from stdin
-        let mut stdin = io::BufReader::new(io::stdin()).lines();
         tokio::select! {
             Some(event) = network_event.recv() => {
                 match event {
@@ -47,7 +52,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let split: Vec<&str> = read.split_whitespace().collect();
                 let peer: PeerId = split.first().unwrap().parse().unwrap();
                 let message = split.get(1).unwrap();
-                client.send_message(peer, Message { sender: "Venomouse".to_owned(), content: message.to_string()}).await;
+                client.send_message(peer, Message { sender: name.clone(), content: message.to_string()}).await;
             }
         }
     }

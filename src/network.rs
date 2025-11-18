@@ -76,7 +76,7 @@ struct Behaviour {
 }
 pub struct EventLoop {
     swarm: Swarm<Behaviour>,
-    command_rx: mpsc::Receiver<Command>
+    command_rx: mpsc::Receiver<Command>,
     event_sender: mpsc::Sender<Event>,
 }
 #[derive(Clone)]
@@ -100,7 +100,7 @@ impl EventLoop {
             tokio::select! {
                 event = self.swarm.select_next_some() => self.handle_event(event).await,
                 Some(command) = self.command_rx.recv() => {
-                    match command { 
+                    match command {
                         Command::ChatCommand(chat) => self.handle_chat_command(chat).await,
                         Command::FriendCommand(friend) => self.handle_friend_command(friend).await,
                     }
