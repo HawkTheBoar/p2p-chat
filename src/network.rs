@@ -1,28 +1,41 @@
 use futures::StreamExt;
 use libp2p::{
-    StreamProtocol, Swarm, mdns, noise,
+    PeerId, StreamProtocol, Swarm,
+    identity::{
+        Keypair,
+        ed25519::{self, PublicKey},
+    },
+    mdns, noise,
     request_response::{self, ProtocolSupport},
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux,
 };
-use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::{Mutex, mpsc};
 
 use crate::network::{
     chat::{ChatCommand, DirectMessageRequest, DirectMessageResponse, Message, MessageResponse},
     friends::FriendCommand,
+    signable::Signable,
 };
 
 pub mod chat;
 pub mod friends;
+pub mod signable;
 
 pub enum Command {
     ChatCommand(ChatCommand),
     FriendCommand(FriendCommand),
 }
-pub(crate) async fn new() -> (EventLoop, Client, mpsc::Receiver<Event>) {
+pub(crate) async fn new(
+    identities: Arc<Mutex<HashMap<PeerId, PublicKey>>>,
+) -> (EventLoop, Client, mpsc::Receiver<Event>) {
     // TODO: Confiugre properly & handle errors
-    let mut swarm = libp2p::SwarmBuilder::with_new_identity()
+    // Dont generate identities on every run, create a store
+    let id = Keypair::generate_ed25519();
+    let pk = id.public();
+    let mut swarm = libp2p::SwarmBuilder::with_existing_identity(id.clone())
         .with_tokio()
         .with_tcp(
             tcp::Config::default(),
@@ -41,9 +54,14 @@ pub(crate) async fn new() -> (EventLoop, Client, mpsc::Receiver<Event>) {
                 )],
                 request_response::Config::default(),
             );
+            let identify = libp2p::identify::Behaviour::new(libp2p::identify::Config::new(
+                "1.0".to_string(),
+                pk,
+            ));
             Ok(Behaviour {
                 mdns,
                 direct_message,
+                identify,
             })
         })
         .unwrap()
@@ -59,40 +77,47 @@ pub(crate) async fn new() -> (EventLoop, Client, mpsc::Receiver<Event>) {
     let (event_tx, event_rx) = mpsc::channel(100);
     let client = Client {
         command_sender: command_tx,
+        id,
     };
-    let event_loop = EventLoop::new(swarm, command_rx, event_tx);
+    let event_loop = EventLoop::new(swarm, command_rx, event_tx, identities);
     (event_loop, client, event_rx)
 }
 #[derive(Debug)]
 pub(crate) enum Event {
     InboundMessage { message: Message },
-    OutboundMessageRead { message_id: i32 },
+    OutboundMessageReceived { message_id: i32 },
+    OutboundMessageInvalidSignature { message_id: i32 },
 }
 #[derive(NetworkBehaviour)]
 struct Behaviour {
     mdns: mdns::tokio::Behaviour,
     direct_message:
         libp2p::request_response::cbor::Behaviour<DirectMessageRequest, DirectMessageResponse>,
+    identify: libp2p::identify::Behaviour,
 }
 pub struct EventLoop {
     swarm: Swarm<Behaviour>,
     command_rx: mpsc::Receiver<Command>,
     event_sender: mpsc::Sender<Event>,
+    identities: Arc<Mutex<HashMap<PeerId, PublicKey>>>,
 }
 #[derive(Clone)]
 pub(crate) struct Client {
     pub command_sender: mpsc::Sender<Command>,
+    id: Keypair,
 }
 impl EventLoop {
     fn new(
         swarm: Swarm<Behaviour>,
         command_rx: mpsc::Receiver<Command>,
         event_sender: mpsc::Sender<Event>,
+        identities: Arc<Mutex<HashMap<PeerId, PublicKey>>>,
     ) -> Self {
         EventLoop {
             swarm,
             command_rx,
             event_sender,
+            identities,
         }
     }
     pub async fn run(mut self) {
@@ -110,6 +135,20 @@ impl EventLoop {
     }
     async fn handle_event(&mut self, event: SwarmEvent<BehaviourEvent>) {
         match event {
+            SwarmEvent::Behaviour(BehaviourEvent::Identify(
+                libp2p::identify::Event::Received {
+                    connection_id,
+                    peer_id,
+                    info,
+                },
+            )) => {
+                let pk = info.public_key;
+                if let Ok(ed) = pk.try_into_ed25519() {
+                    self.identities.lock().await.insert(peer_id, ed);
+                } else {
+                    println!("Identified peer public key is not ed25519");
+                };
+            }
             SwarmEvent::Behaviour(BehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
                 for (peer_id, _multiaddr) in list {
                     println!("{peer_id} peer connected!")
@@ -125,23 +164,35 @@ impl EventLoop {
             SwarmEvent::Behaviour(BehaviourEvent::DirectMessage(
                 request_response::Event::Message { message, .. },
             )) => match message {
-                request_response::Message::Request {
-                    request, channel, ..
-                } => {
+                request_response::Message::Request { request, .. } => {
+                    // TODO: remove this unwrap
+                    let sender: PeerId = request.0.sender.to_owned().parse().unwrap();
+                    let verified = match self.identities.lock().await.get(&sender) {
+                        Some(pk) => request.0.verify(pk),
+                        None => todo!(),
+                    };
+                    if !verified {
+                        println!("Message failed to verify");
+                        return;
+                    }
+                    // if message is valid, send
                     self.event_sender
                         .send(Event::InboundMessage { message: request.0 })
                         .await
                         .expect("Event receiver not to be dropped.");
                 }
-                request_response::Message::Response {
-                    request_id,
-                    response,
-                } => match response {
+                request_response::Message::Response { response, .. } => match response {
                     DirectMessageResponse(MessageResponse::ACK { message_id }) => {
                         self.event_sender
-                            .send(Event::OutboundMessageRead { message_id })
+                            .send(Event::OutboundMessageReceived { message_id })
                             .await
                             .expect("Event receiver not to be dropped.");
+                    }
+                    DirectMessageResponse(MessageResponse::InvalidSignature { message_id }) => {
+                        self.event_sender
+                            .send(Event::OutboundMessageInvalidSignature { message_id })
+                            .await
+                            .expect("Event receiver not to be dropped");
                     }
                 },
             },
