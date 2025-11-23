@@ -40,8 +40,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         tokio::select! {
             Some(event) = network_event.recv() => {
                 match event {
-                    Event::InboundMessage { message } => {
-                        println!("{}: {}", message.sender, message.content)
+                    Event::InboundMessage { message, sender } => {
+                        println!("{}: {}", sender.to_bytes().iter().map(|b| b.to_string()).collect::<String>(),message.content);
                     }
                     Event::OutboundMessageReceived { message_id } => {
                         println!("message was received!");

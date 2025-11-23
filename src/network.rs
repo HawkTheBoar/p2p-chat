@@ -17,7 +17,6 @@ use tokio::sync::{Mutex, mpsc};
 use crate::network::{
     chat::{ChatCommand, DirectMessageRequest, DirectMessageResponse, Message, MessageResponse},
     friends::FriendCommand,
-    signable::Signable,
 };
 
 pub mod chat;
@@ -34,7 +33,6 @@ pub(crate) async fn new(
     // TODO: Confiugre properly & handle errors
     // Dont generate identities on every run, create a store
     let id = Keypair::generate_ed25519();
-    let pk = id.public();
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(id.clone())
         .with_tokio()
         .with_tcp(
@@ -54,14 +52,9 @@ pub(crate) async fn new(
                 )],
                 request_response::Config::default(),
             );
-            let identify = libp2p::identify::Behaviour::new(libp2p::identify::Config::new(
-                "1.0".to_string(),
-                pk,
-            ));
             Ok(Behaviour {
                 mdns,
                 direct_message,
-                identify,
             })
         })
         .unwrap()
@@ -79,12 +72,12 @@ pub(crate) async fn new(
         command_sender: command_tx,
         id,
     };
-    let event_loop = EventLoop::new(swarm, command_rx, event_tx, identities);
+    let event_loop = EventLoop::new(swarm, command_rx, event_tx);
     (event_loop, client, event_rx)
 }
 #[derive(Debug)]
 pub(crate) enum Event {
-    InboundMessage { message: Message },
+    InboundMessage { message: Message, sender: PublicKey },
     OutboundMessageReceived { message_id: i32 },
     OutboundMessageInvalidSignature { message_id: i32 },
 }
@@ -93,13 +86,11 @@ struct Behaviour {
     mdns: mdns::tokio::Behaviour,
     direct_message:
         libp2p::request_response::cbor::Behaviour<DirectMessageRequest, DirectMessageResponse>,
-    identify: libp2p::identify::Behaviour,
 }
 pub struct EventLoop {
     swarm: Swarm<Behaviour>,
     command_rx: mpsc::Receiver<Command>,
     event_sender: mpsc::Sender<Event>,
-    identities: Arc<Mutex<HashMap<PeerId, PublicKey>>>,
 }
 #[derive(Clone)]
 pub(crate) struct Client {
@@ -111,13 +102,11 @@ impl EventLoop {
         swarm: Swarm<Behaviour>,
         command_rx: mpsc::Receiver<Command>,
         event_sender: mpsc::Sender<Event>,
-        identities: Arc<Mutex<HashMap<PeerId, PublicKey>>>,
     ) -> Self {
         EventLoop {
             swarm,
             command_rx,
             event_sender,
-            identities,
         }
     }
     pub async fn run(mut self) {
@@ -135,20 +124,6 @@ impl EventLoop {
     }
     async fn handle_event(&mut self, event: SwarmEvent<BehaviourEvent>) {
         match event {
-            SwarmEvent::Behaviour(BehaviourEvent::Identify(
-                libp2p::identify::Event::Received {
-                    connection_id,
-                    peer_id,
-                    info,
-                },
-            )) => {
-                let pk = info.public_key;
-                if let Ok(ed) = pk.try_into_ed25519() {
-                    self.identities.lock().await.insert(peer_id, ed);
-                } else {
-                    println!("Identified peer public key is not ed25519");
-                };
-            }
             SwarmEvent::Behaviour(BehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
                 for (peer_id, _multiaddr) in list {
                     println!("{peer_id} peer connected!")
@@ -166,18 +141,10 @@ impl EventLoop {
             )) => match message {
                 request_response::Message::Request { request, .. } => {
                     // TODO: remove this unwrap
-                    let sender: PeerId = request.0.sender.to_owned().parse().unwrap();
-                    let verified = match self.identities.lock().await.get(&sender) {
-                        Some(pk) => request.0.verify(pk),
-                        None => todo!(),
-                    };
-                    if !verified {
-                        println!("Message failed to verify");
-                        return;
-                    }
+                    let (message, sender) = request.0.verify().expect("to be verified");
                     // if message is valid, send
                     self.event_sender
-                        .send(Event::InboundMessage { message: request.0 })
+                        .send(Event::InboundMessage { message, sender })
                         .await
                         .expect("Event receiver not to be dropped.");
                 }
