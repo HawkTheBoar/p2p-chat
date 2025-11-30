@@ -1,4 +1,6 @@
 mod network;
+mod settings;
+use directories::ProjectDirs;
 use futures::stream::StreamExt;
 use libp2p::{PeerId, identity::ed25519::PublicKey};
 use serde::{Deserialize, Serialize};
@@ -6,17 +8,22 @@ use std::{
     collections::{HashMap, hash_map::DefaultHasher},
     error::Error,
     hash::{Hash, Hasher},
+    path::Path,
     sync::Arc,
     time::Duration,
 };
 use tokio::{
+    fs::{read_to_string, write},
     io::{self, AsyncBufReadExt},
     select,
     sync::Mutex,
 };
 use tracing_subscriber::EnvFilter;
 
-use crate::network::{Event, chat::Message};
+use crate::{
+    network::{Event, chat::Message},
+    settings::{load_settings, save_settings},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -26,6 +33,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let identities = Arc::new(Mutex::new(HashMap::<PeerId, PublicKey>::new()));
     let mut stdin = io::BufReader::new(io::stdin()).lines();
 
+    let proj_dirs =
+        ProjectDirs::from("com", "Mistr", "p2pchat").expect("Couldnt determine directories");
+    let settings_path = proj_dirs.config_dir().join("settings");
+    println!("{:?}", settings_path);
+    let settings_json = read_to_string(&settings_path).await;
+    let settings_json = match settings_json {
+        Ok(settings) => settings,
+        Err(err) => {
+            tokio::fs::File::create(settings_path.clone())
+                .await
+                .unwrap();
+            "".to_string()
+        }
+    };
+    let settings = load_settings(&settings_json);
+    save_settings(&settings, settings_path.to_str().unwrap());
+    println!("{:?}", settings);
     // let name = {
     //     println!("Input your name:");
     //     stdin.next_line().await?.unwrap_or("Anonymous".to_string())
@@ -44,7 +68,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         println!("{}: {}", sender.to_bytes().iter().map(|b| b.to_string()).collect::<String>(),message.content);
                     }
                     Event::OutboundMessageReceived { message_id } => {
-                        println!("message was received!");
+                        println!("{} message was received!", message_id);
                     },
                     Event::OutboundMessageInvalidSignature { message_id } => {
                         println!("outbound messsage has invalid sig");

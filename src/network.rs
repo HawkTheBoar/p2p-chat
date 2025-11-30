@@ -13,10 +13,11 @@ use libp2p::{
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
+use uuid::Uuid;
 
 use crate::network::{
     chat::{ChatCommand, DirectMessageRequest, DirectMessageResponse, Message, MessageResponse},
-    friends::FriendCommand,
+    friends::{FriendCommand, FriendRequest, FriendResponse},
 };
 
 pub mod chat;
@@ -52,9 +53,14 @@ pub(crate) async fn new(
                 )],
                 request_response::Config::default(),
             );
+            let friends = libp2p::request_response::cbor::Behaviour::new(
+                [(StreamProtocol::new("/friends/1"), ProtocolSupport::Full)],
+                request_response::Config::default(),
+            );
             Ok(Behaviour {
                 mdns,
                 direct_message,
+                friends,
             })
         })
         .unwrap()
@@ -77,15 +83,23 @@ pub(crate) async fn new(
 }
 #[derive(Debug)]
 pub(crate) enum Event {
-    InboundMessage { message: Message, sender: PublicKey },
-    OutboundMessageReceived { message_id: i32 },
-    OutboundMessageInvalidSignature { message_id: i32 },
+    InboundMessage {
+        message: Message,
+        sender: Box<PublicKey>,
+    },
+    OutboundMessageReceived {
+        message_id: Uuid,
+    },
+    OutboundMessageInvalidSignature {
+        message_id: Uuid,
+    },
 }
 #[derive(NetworkBehaviour)]
 struct Behaviour {
     mdns: mdns::tokio::Behaviour,
     direct_message:
         libp2p::request_response::cbor::Behaviour<DirectMessageRequest, DirectMessageResponse>,
+    friends: libp2p::request_response::cbor::Behaviour<FriendRequest, FriendResponse>,
 }
 pub struct EventLoop {
     swarm: Swarm<Behaviour>,
@@ -139,12 +153,27 @@ impl EventLoop {
             SwarmEvent::Behaviour(BehaviourEvent::DirectMessage(
                 request_response::Event::Message { message, .. },
             )) => match message {
-                request_response::Message::Request { request, .. } => {
+                request_response::Message::Request {
+                    request, channel, ..
+                } => {
                     // TODO: remove this unwrap
                     let (message, sender) = request.0.verify().expect("to be verified");
                     // if message is valid, send
+                    self.swarm
+                        .behaviour_mut()
+                        .direct_message
+                        .send_response(
+                            channel,
+                            DirectMessageResponse(MessageResponse::ACK {
+                                message_id: message.id,
+                            }),
+                        )
+                        .expect("to be sent");
                     self.event_sender
-                        .send(Event::InboundMessage { message, sender })
+                        .send(Event::InboundMessage {
+                            message,
+                            sender: Box::new(sender),
+                        })
                         .await
                         .expect("Event receiver not to be dropped.");
                 }
@@ -161,6 +190,31 @@ impl EventLoop {
                             .await
                             .expect("Event receiver not to be dropped");
                     }
+                },
+            },
+            SwarmEvent::Behaviour(BehaviourEvent::Friends(request_response::Event::Message {
+                peer,
+                connection_id,
+                message,
+            })) => match message {
+                request_response::Message::Request {
+                    request_id,
+                    request,
+                    channel,
+                } => match request {
+                    FriendRequest::RequestName => {}
+                    FriendRequest::VerifyName { name } => {}
+                    FriendRequest::AcceptFriend { decision } => {}
+                    FriendRequest::AddFriend => {}
+                },
+                request_response::Message::Response {
+                    request_id,
+                    response,
+                } => match response {
+                    FriendResponse::RequestName { name } => {}
+                    FriendResponse::VerifyName(name) => {}
+                    FriendResponse::AddFriendAck => {}
+                    FriendResponse::AcceptFriendAck => {}
                 },
             },
             _ => {}

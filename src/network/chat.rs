@@ -14,12 +14,11 @@ pub struct DirectMessageResponse(pub MessageResponse);
 pub struct Message {
     pub content: String,
     pub id: Uuid,
-    pub signature: Option<Vec<u8>>,
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub enum MessageResponse {
-    ACK { message_id: i32 },
-    InvalidSignature { message_id: i32 },
+    ACK { message_id: Uuid },
+    InvalidSignature { message_id: Uuid },
 }
 pub enum ChatCommand {
     SendMessage {
@@ -54,7 +53,6 @@ impl Client {
         let message = Message {
             content: message,
             id: uuid::Uuid::new_v4(),
-            signature: None,
         };
         let signed_message = sign(message, &self.id);
         self.command_sender
