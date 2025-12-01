@@ -33,22 +33,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let identities = Arc::new(Mutex::new(HashMap::<PeerId, PublicKey>::new()));
     let mut stdin = io::BufReader::new(io::stdin()).lines();
 
-    let proj_dirs =
-        ProjectDirs::from("com", "Mistr", "p2pchat").expect("Couldnt determine directories");
-    let settings_path = proj_dirs.config_dir().join("settings");
-    println!("{:?}", settings_path);
-    let settings_json = read_to_string(&settings_path).await;
-    let settings_json = match settings_json {
-        Ok(settings) => settings,
-        Err(err) => {
-            tokio::fs::File::create(settings_path.clone())
-                .await
-                .unwrap();
-            "".to_string()
-        }
-    };
-    let settings = load_settings(&settings_json);
-    save_settings(&settings, settings_path.to_str().unwrap());
+    let settings = load_settings().await;
+    save_settings(&settings);
     println!("{:?}", settings);
     // let name = {
     //     println!("Input your name:");
