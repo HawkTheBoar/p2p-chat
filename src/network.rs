@@ -1,10 +1,7 @@
 use futures::StreamExt;
 use libp2p::{
     PeerId, StreamProtocol, Swarm,
-    identity::{
-        Keypair,
-        ed25519::{self, PublicKey},
-    },
+    identity::{Keypair, ed25519::PublicKey},
     mdns, noise,
     request_response::{self, ProtocolSupport},
     swarm::{NetworkBehaviour, SwarmEvent},

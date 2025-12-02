@@ -1,27 +1,15 @@
 mod network;
 mod settings;
-use directories::ProjectDirs;
-use futures::stream::StreamExt;
 use libp2p::{PeerId, identity::ed25519::PublicKey};
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, hash_map::DefaultHasher},
-    error::Error,
-    hash::{Hash, Hasher},
-    path::Path,
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashMap, error::Error, sync::Arc};
 use tokio::{
-    fs::{read_to_string, write},
     io::{self, AsyncBufReadExt},
-    select,
     sync::Mutex,
 };
 use tracing_subscriber::EnvFilter;
 
 use crate::{
-    network::{Event, chat::Message},
+    network::Event,
     settings::{load_settings, save_settings},
 };
 
@@ -34,7 +22,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut stdin = io::BufReader::new(io::stdin()).lines();
 
     let settings = load_settings().await;
-    save_settings(&settings);
+    save_settings(&settings).await;
     println!("{:?}", settings);
     // let name = {
     //     println!("Input your name:");
