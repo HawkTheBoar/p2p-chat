@@ -4,25 +4,22 @@ use libp2p::{PeerId, identity::ed25519::PublicKey};
 use std::{collections::HashMap, error::Error, sync::Arc};
 use tokio::{
     io::{self, AsyncBufReadExt},
-    sync::Mutex,
+    sync::{Mutex, RwLock},
 };
 use tracing_subscriber::EnvFilter;
 
-use crate::{
-    network::Event,
-    settings::{load_settings, save_settings},
-};
+use crate::{network::Event, settings::Settings};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .try_init();
-    let identities = Arc::new(Mutex::new(HashMap::<PeerId, PublicKey>::new()));
+    let identities = Arc::new(RwLock::new(HashMap::<PeerId, PublicKey>::new()));
     let mut stdin = io::BufReader::new(io::stdin()).lines();
 
-    let settings = load_settings().await;
-    save_settings(&settings).await;
+    let settings = Settings::load().await;
+    Settings::save(&settings).await;
     println!("{:?}", settings);
     // let name = {
     //     println!("Input your name:");

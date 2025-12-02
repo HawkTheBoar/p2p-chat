@@ -9,7 +9,7 @@ use libp2p::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::{RwLock, mpsc};
 use uuid::Uuid;
 
 use crate::network::{
@@ -26,7 +26,7 @@ pub enum Command {
     FriendCommand(FriendCommand),
 }
 pub(crate) async fn new(
-    identities: Arc<Mutex<HashMap<PeerId, PublicKey>>>,
+    identities: Arc<RwLock<HashMap<PeerId, PublicKey>>>,
 ) -> (EventLoop, Client, mpsc::Receiver<Event>) {
     // TODO: Confiugre properly & handle errors
     // Dont generate identities on every run, create a store
