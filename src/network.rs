@@ -12,9 +12,14 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use uuid::Uuid;
 
-use crate::network::{
-    chat::{ChatCommand, DirectMessageRequest, DirectMessageResponse, Message, MessageResponse},
-    friends::{FriendCommand, FriendRequest, FriendResponse},
+use crate::{
+    network::{
+        chat::{
+            ChatCommand, DirectMessageRequest, DirectMessageResponse, Message, MessageResponse,
+        },
+        friends::{FriendCommand, FriendRequest, FriendResponse},
+    },
+    settings::{Setting, SettingName, SettingValue},
 };
 
 pub mod chat;
@@ -27,6 +32,7 @@ pub enum Command {
 }
 pub(crate) async fn new(
     identities: Arc<RwLock<HashMap<PeerId, PublicKey>>>,
+    settings: Arc<RwLock<HashMap<SettingName, Setting>>>,
 ) -> (EventLoop, Client, mpsc::Receiver<Event>) {
     // TODO: Confiugre properly & handle errors
     // Dont generate identities on every run, create a store
@@ -75,7 +81,7 @@ pub(crate) async fn new(
         command_sender: command_tx,
         id,
     };
-    let event_loop = EventLoop::new(swarm, command_rx, event_tx);
+    let event_loop = EventLoop::new(swarm, command_rx, event_tx, settings);
     (event_loop, client, event_rx)
 }
 #[derive(Debug)]
@@ -102,6 +108,7 @@ pub struct EventLoop {
     swarm: Swarm<Behaviour>,
     command_rx: mpsc::Receiver<Command>,
     event_sender: mpsc::Sender<Event>,
+    settings: Arc<tokio::sync::RwLock<HashMap<SettingName, Setting>>>,
 }
 #[derive(Clone)]
 pub(crate) struct Client {
@@ -113,11 +120,13 @@ impl EventLoop {
         swarm: Swarm<Behaviour>,
         command_rx: mpsc::Receiver<Command>,
         event_sender: mpsc::Sender<Event>,
+        settings: Arc<tokio::sync::RwLock<HashMap<SettingName, Setting>>>,
     ) -> Self {
         EventLoop {
             swarm,
             command_rx,
             event_sender,
+            settings,
         }
     }
     pub async fn run(mut self) {
@@ -199,7 +208,26 @@ impl EventLoop {
                     request,
                     channel,
                 } => match request {
-                    FriendRequest::RequestName => {}
+                    FriendRequest::RequestName => {
+                        let lock = self.settings.read().await;
+                        let name = lock.get(&SettingName::Name);
+
+                        self.swarm
+                            .behaviour_mut()
+                            .friends
+                            .send_response(
+                                channel,
+                                FriendResponse::RequestName {
+                                    name: match name.unwrap().get_value() {
+                                        SettingValue::String(val) => {
+                                            val.clone().unwrap_or("Anonymous".to_string())
+                                        }
+                                        _ => unimplemented!("undefined behaviour"),
+                                    },
+                                },
+                            )
+                            .expect("On Name request to be sent");
+                    }
                     FriendRequest::VerifyName { name } => {}
                     FriendRequest::AcceptFriend { decision } => {}
                     FriendRequest::AddFriend => {}

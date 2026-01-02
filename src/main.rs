@@ -1,6 +1,7 @@
 mod network;
 mod settings;
 use libp2p::{PeerId, identity::ed25519::PublicKey};
+use settings::{SettingName, SettingValue};
 use std::{collections::HashMap, error::Error, sync::Arc};
 use tokio::{
     io::{self, AsyncBufReadExt},
@@ -8,7 +9,10 @@ use tokio::{
 };
 use tracing_subscriber::EnvFilter;
 
-use crate::{network::Event, settings::Settings};
+use crate::{
+    network::Event,
+    settings::{Setting, Settings},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -18,14 +22,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let identities = Arc::new(RwLock::new(HashMap::<PeerId, PublicKey>::new()));
     let mut stdin = io::BufReader::new(io::stdin()).lines();
 
-    let settings = Settings::load().await;
-    Settings::save(&settings).await;
+    let mut settings = Settings::load().await;
+    // Settings::save(&settings).await;
     println!("{:?}", settings);
-    // let name = {
-    //     println!("Input your name:");
-    //     stdin.next_line().await?.unwrap_or("Anonymous".to_string())
-    // };
-    let (event_loop, mut client, mut network_event) = network::new(identities.clone()).await;
+    if let Some(setting) = settings.get_mut(&SettingName::Name)
+        && *setting.get_value() == SettingValue::String(None)
+    {
+        let name = {
+            println!("Input your name:");
+            stdin.next_line().await?.unwrap_or("Anonymous".to_string())
+        };
+        setting.set_value(SettingValue::String(Some(name))).unwrap();
+        println!("{:?}", settings);
+        Settings::save(&settings).await;
+    }
+    let settings = Arc::new(RwLock::new(settings));
+    let (event_loop, mut client, mut network_event) =
+        network::new(identities.clone(), settings.clone()).await;
 
     tokio::spawn(event_loop.run());
 
