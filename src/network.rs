@@ -18,6 +18,7 @@ use crate::{
             ChatCommand, DirectMessageRequest, DirectMessageResponse, Message, MessageResponse,
         },
         friends::{FriendCommand, FriendRequest, FriendResponse},
+        signable::sign,
     },
     settings::{Setting, SettingName, SettingValue},
 };
@@ -78,10 +79,11 @@ pub(crate) async fn new(
     let (command_tx, command_rx) = mpsc::channel(100);
     let (event_tx, event_rx) = mpsc::channel(100);
     let client = Client {
+        settings: settings.clone(),
         command_sender: command_tx,
-        id,
+        keys: id.clone(),
     };
-    let event_loop = EventLoop::new(swarm, command_rx, event_tx, settings);
+    let event_loop = EventLoop::new(swarm, command_rx, event_tx, settings, id);
     (event_loop, client, event_rx)
 }
 #[derive(Debug)]
@@ -102,18 +104,21 @@ struct Behaviour {
     mdns: mdns::tokio::Behaviour,
     direct_message:
         libp2p::request_response::cbor::Behaviour<DirectMessageRequest, DirectMessageResponse>,
-    friends: libp2p::request_response::cbor::Behaviour<FriendRequest, FriendResponse>,
+    friends:
+        libp2p::request_response::cbor::Behaviour<FriendRequest, signable::Signed<FriendResponse>>,
 }
 pub struct EventLoop {
     swarm: Swarm<Behaviour>,
     command_rx: mpsc::Receiver<Command>,
     event_sender: mpsc::Sender<Event>,
     settings: Arc<tokio::sync::RwLock<HashMap<SettingName, Setting>>>,
+    keys: Keypair,
 }
 #[derive(Clone)]
 pub(crate) struct Client {
     pub command_sender: mpsc::Sender<Command>,
-    id: Keypair,
+    settings: Arc<tokio::sync::RwLock<HashMap<SettingName, Setting>>>,
+    keys: Keypair,
 }
 impl EventLoop {
     fn new(
@@ -121,12 +126,14 @@ impl EventLoop {
         command_rx: mpsc::Receiver<Command>,
         event_sender: mpsc::Sender<Event>,
         settings: Arc<tokio::sync::RwLock<HashMap<SettingName, Setting>>>,
+        keys: Keypair,
     ) -> Self {
         EventLoop {
             swarm,
             command_rx,
             event_sender,
             settings,
+            keys,
         }
     }
     pub async fn run(mut self) {
@@ -211,36 +218,80 @@ impl EventLoop {
                     FriendRequest::RequestName => {
                         let lock = self.settings.read().await;
                         let name = lock.get(&SettingName::Name);
-
                         self.swarm
                             .behaviour_mut()
                             .friends
                             .send_response(
                                 channel,
-                                FriendResponse::RequestName {
-                                    name: match name.unwrap().get_value() {
-                                        SettingValue::String(val) => {
-                                            val.clone().unwrap_or("Anonymous".to_string())
-                                        }
-                                        _ => unimplemented!("undefined behaviour"),
+                                sign(
+                                    FriendResponse::RequestName {
+                                        name: match name.unwrap().get_value() {
+                                            SettingValue::String(val) => {
+                                                val.clone().unwrap_or("Anonymous".to_string())
+                                            }
+                                            _ => unimplemented!("undefined behaviour"),
+                                        },
                                     },
-                                },
+                                    &self.keys,
+                                ),
                             )
                             .expect("On Name request to be sent");
                     }
-                    FriendRequest::VerifyName { name } => {}
-                    FriendRequest::AcceptFriend { decision } => {}
-                    FriendRequest::AddFriend => {}
+                    FriendRequest::VerifyName { name } => {
+                        let lock = self.settings.read().await;
+                        let SettingValue::String(Some(curr_name)) = lock
+                            .get(&SettingName::Name)
+                            .expect("name opt to exist")
+                            .get_value()
+                        else {
+                            unimplemented!("");
+                        };
+                        self.swarm
+                            .behaviour_mut()
+                            .friends
+                            .send_response(
+                                channel,
+                                sign(
+                                    FriendResponse::VerifyName(match name == *curr_name {
+                                        true => None,
+                                        false => Some(curr_name.clone()),
+                                    }),
+                                    &self.keys,
+                                ),
+                            )
+                            .expect("to send res");
+                    }
+                    FriendRequest::AcceptFriend { decision } => {
+                        self.swarm
+                            .behaviour_mut()
+                            .friends
+                            .send_response(
+                                channel,
+                                sign(FriendResponse::AcceptFriendAck, &self.keys),
+                            )
+                            .expect("to send res");
+                    }
+                    FriendRequest::AddFriend => self
+                        .swarm
+                        .behaviour_mut()
+                        .friends
+                        .send_response(channel, sign(FriendResponse::AddFriendAck, &self.keys))
+                        .expect("to send res"),
                 },
+
                 request_response::Message::Response {
                     request_id,
                     response,
-                } => match response {
-                    FriendResponse::RequestName { name } => {}
-                    FriendResponse::VerifyName(name) => {}
-                    FriendResponse::AddFriendAck => {}
-                    FriendResponse::AcceptFriendAck => {}
-                },
+                } => {
+                    if let Some((resp, sender)) = response.verify() {
+                        match resp {
+                            FriendResponse::RequestName { name } => {}
+                            FriendResponse::VerifyName(name) => {}
+                            FriendResponse::AddFriendAck => {}
+                            FriendResponse::AcceptFriendAck => {}
+                        }
+                    }
+                }
             },
             _ => {}
         }

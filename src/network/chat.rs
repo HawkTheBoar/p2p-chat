@@ -54,7 +54,7 @@ impl Client {
             content: message,
             id: uuid::Uuid::new_v4(),
         };
-        let signed_message = sign(message, &self.id);
+        let signed_message = sign(message, &self.keys);
         self.command_sender
             .send(Command::ChatCommand(ChatCommand::SendMessage {
                 receiver,

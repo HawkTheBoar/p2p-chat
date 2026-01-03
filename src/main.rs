@@ -1,5 +1,6 @@
 mod network;
 mod settings;
+mod tui;
 use libp2p::{PeerId, identity::ed25519::PublicKey};
 use settings::{SettingName, SettingValue};
 use std::{collections::HashMap, error::Error, sync::Arc};

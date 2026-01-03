@@ -1,7 +1,7 @@
 use libp2p::PeerId;
 use serde::{Deserialize, Serialize};
 
-use crate::network::{Client, EventLoop};
+use crate::network::{Client, EventLoop, signable::Signed};
 #[derive(Debug, Serialize, Deserialize)]
 pub enum FriendRequest {
     RequestName,
