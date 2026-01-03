@@ -72,7 +72,7 @@ impl Settings {
         let mut user_settings = match serde_json::from_str::<HashMap<SettingName, Setting>>(&json) {
             Ok(s) => s,
             Err(err) => {
-                println!("{:?}", err);
+                tracing::error!("{:?}", err);
                 settings.clone()
             }
         };
@@ -90,7 +90,7 @@ impl Settings {
     }
     pub async fn save(settings: &HashMap<SettingName, Setting>) {
         let settings_path = get_config_save_file_path(SaveFile::Settings);
-        println!("{:?}", settings_path);
+        tracing::info!("saving to path: {:?}", settings_path);
         let serialized = serde_json::to_string::<HashMap<SettingName, Setting>>(settings)
             .expect("failed to serialize settings");
         std::fs::write(settings_path, serialized).expect("failed to write settings");

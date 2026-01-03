@@ -153,14 +153,16 @@ impl EventLoop {
         match event {
             SwarmEvent::Behaviour(BehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
                 for (peer_id, _multiaddr) in list {
-                    println!("{peer_id} peer connected!")
+                    tracing::info!("{peer_id} peer connected!");
                 }
             }
             SwarmEvent::Behaviour(BehaviourEvent::Mdns(mdns::Event::Expired(list))) => {
-                for (peer_id, _multiaddr) in list {}
+                for (peer_id, _multiaddr) in list {
+                    tracing::info!("{peer_id} discovered via mDNS");
+                }
             }
             SwarmEvent::NewListenAddr { address, .. } => {
-                println!("Local node is listening on {address}");
+                tracing::info!("Local node is listening on {address}");
             }
 
             SwarmEvent::Behaviour(BehaviourEvent::DirectMessage(
