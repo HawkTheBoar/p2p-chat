@@ -1,10 +1,18 @@
+mod widgets;
+use crossterm::event::KeyCode;
 use crossterm::event::KeyEventKind;
+use crossterm::event::KeyModifiers;
 use futures::{FutureExt, StreamExt};
 use ratatui::Frame;
 use ratatui::crossterm::event::KeyCode::Char;
 use ratatui::crossterm::event::{KeyEvent, MouseEvent};
+use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::prelude::Backend;
+use ratatui::style::Style;
+use ratatui::widgets::{Block, List, ListDirection, ListState, Scrollbar, ScrollbarState};
 use ratatui::{prelude::CrosstermBackend, widgets::Paragraph};
+use std::sync::Arc;
+use strum::EnumIter;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 
@@ -117,26 +125,96 @@ impl Tui {
 }
 
 fn handle_event(app: &mut App, event: Event) {
+    // switch tabline -> SHIFT + H/L
+    // switch between selectable widgets -> CTRL + H/J/K/L
     match event {
-        Event::Key(key) => match key.code {
-            crossterm::event::KeyCode::Esc => app.should_quit = true,
-            Char('j') => app.counter += 1,
-            Char('k') => app.counter -= 1,
-            Char('q') => app.should_quit = true,
+        Event::Key(key) => match (key.code, key.modifiers) {
+            (Char('q'), KeyModifiers::NONE) | (KeyCode::Esc, KeyModifiers::NONE) => {
+                app.should_quit = true
+            }
+            (Char('h'), KeyModifiers::SHIFT) => app.selected_tab.next(),
+            // crossterm::event::KeyCode::Esc => app.should_quit = true,
+            // Char('q') => app.should_quit = true,
             _ => {}
         },
         _ => {}
     };
 }
-fn ui(f: &mut Frame, app: &App) {
-    f.render_widget(
-        Paragraph::new(format!("Counter: {}", app.counter)),
-        f.area(),
-    );
+const TABLINE_LAYOUT: [Tabline; 2] = [Tabline::Chatting, Tabline::FriendRequests];
+enum Tabline {
+    Chatting,
+    FriendRequests,
+}
+// impl Default for Tabline {
+//     fn default() -> Self {
+// Self::Chatting(ContactPage::default())
+//     }
+// }
+impl Tabline {
+    fn left(&mut self) {}
+    fn right(&mut self) {}
+    fn up(&mut self) {}
+    fn down(&mut self) {}
+}
+#[derive(Default)]
+enum ContactPage {
+    #[default]
+    ContactList,
+    Chat,
+    CallButton,
+}
+#[derive(Default)]
+enum FriendRequestPage {
+    #[default]
+    RequestList,
+    Search,
+}
+fn ui(f: &mut Frame, app: &mut App) {
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![Constraint::Length(3), Constraint::Fill(1)])
+        .split(f.area());
+    // Tabline
+    let tabline = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(layout[0].offset(ratatui::layout::Offset { x: 0, y: 1 }));
+    f.render_widget(Paragraph::new("Chatting").centered(), tabline[0]);
+    f.render_widget(Paragraph::new("Friend requests").centered(), tabline[1]);
+
+    let main_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(vec![Constraint::Percentage(20), Constraint::Fill(1)])
+        .split(layout[1]);
+    // contacts
+    let contact_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(vec![Constraint::Length(2), Constraint::Fill(1)])
+        .split(main_layout[0]);
+
+    let contact_list = List::new(app.contacts.clone())
+        .block(Block::bordered().title("Contacts"))
+        .style(Style::new().white())
+        .highlight_style(Style::new().italic())
+        .highlight_symbol(">>")
+        .repeat_highlight_symbol(true)
+        .direction(ListDirection::TopToBottom);
+    f.render_stateful_widget(contact_list, contact_layout[1], &mut app.selected_contact);
+
+    let vertical_scroll = app.selected_contact.selected().unwrap_or(0); // from app state
+    let mut scrollbar_state = ScrollbarState::new(app.contacts.len()).position(vertical_scroll);
+    let contact_scroll_bar =
+        Scrollbar::default().orientation(ratatui::widgets::ScrollbarOrientation::VerticalLeft);
+    f.render_stateful_widget(contact_scroll_bar, contact_layout[0], &mut scrollbar_state);
+    // friend list
 }
 // App state
 struct App {
-    counter: i64,
+    selected_tab: Tabline,
+    contact_page: ContactPage,
+    friend_request_page: FriendRequestPage,
+    selected_contact: ListState,
+    contacts: Vec<String>,
     should_quit: bool,
 }
 pub async fn run() -> anyhow::Result<()> {
@@ -146,8 +224,12 @@ pub async fn run() -> anyhow::Result<()> {
 
     // application state
     let mut app = App {
-        counter: 0,
+        selected_tab: Tabline::default(),
+        friend_request_page: FriendRequestPage::default(),
+        contact_page: ContactPage::default(),
         should_quit: false,
+        contacts: vec!["Mark".to_string(), "Zuckerlizard".to_string()],
+        selected_contact: ListState::default().with_selected(Some(0)),
     };
 
     loop {
@@ -159,7 +241,7 @@ pub async fn run() -> anyhow::Result<()> {
         handle_event(&mut app, event);
 
         tui.terminal.draw(|f| {
-            ui(f, &app);
+            ui(f, &mut app);
         })?;
 
         // application exit
