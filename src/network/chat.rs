@@ -10,7 +10,7 @@ pub struct DirectMessageRequest(pub Signed<Message>);
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DirectMessageResponse(pub MessageResponse);
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Message {
     pub content: String,
     pub id: Uuid,

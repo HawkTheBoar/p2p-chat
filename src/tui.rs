@@ -1,4 +1,5 @@
 mod widgets;
+use crate::network::chat::Message;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEventKind;
 use crossterm::event::KeyModifiers;
@@ -7,12 +8,10 @@ use ratatui::Frame;
 use ratatui::crossterm::event::KeyCode::Char;
 use ratatui::crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::prelude::Backend;
 use ratatui::style::Style;
+use ratatui::text::Text;
 use ratatui::widgets::{Block, List, ListDirection, ListState, Scrollbar, ScrollbarState};
 use ratatui::{prelude::CrosstermBackend, widgets::Paragraph};
-use std::sync::Arc;
-use strum::EnumIter;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 
@@ -49,7 +48,7 @@ impl Tui {
             let mut reader = crossterm::event::EventStream::new();
             // let mut tick_interval = tokio::time::interval(tick_delay);
             // let mut render_interval = tokio::time::interval(render_delay);
-            _event_tx.send(Event::Init);
+            _event_tx.send(Event::Init).unwrap();
             loop {
                 // let tick_delay = tick_interval.tick();
                 // let render_delay = render_interval.tick();
@@ -121,49 +120,183 @@ impl Tui {
         if let Some(task) = self.task {
             task.abort();
         }
+        ratatui::restore();
     }
 }
-
+struct Key;
+impl Key {
+    const LEFT: KeyCode = Char('h');
+    const RIGHT: KeyCode = Char('l');
+    const UP: KeyCode = Char('k');
+    const DOWN: KeyCode = Char('j');
+}
 fn handle_event(app: &mut App, event: Event) {
     // switch tabline -> SHIFT + H/L
     // switch between selectable widgets -> CTRL + H/J/K/L
     match event {
         Event::Key(key) => match (key.code, key.modifiers) {
-            (Char('q'), KeyModifiers::NONE) | (KeyCode::Esc, KeyModifiers::NONE) => {
-                app.should_quit = true
+            (KeyCode::Esc, KeyModifiers::NONE) => {
+                app.should_quit = true;
+                return;
             }
-            (Char('h'), KeyModifiers::SHIFT) => app.selected_tab.next(),
-            // crossterm::event::KeyCode::Esc => app.should_quit = true,
-            // Char('q') => app.should_quit = true,
+            (Key::LEFT, KeyModifiers::SHIFT) => {
+                app.selected_tab.left();
+                return;
+            }
+            (Key::RIGHT, KeyModifiers::SHIFT) => {
+                app.selected_tab.right();
+                return;
+            }
+            (Key::LEFT | Key::RIGHT | Key::UP | Key::DOWN, KeyModifiers::CONTROL) => {
+                app.selected_tab = match key.code {
+                    Key::LEFT => {
+                        tracing::info!("Pressed LEFT + CONTROL");
+                        if app.selected_tab == Tabline::Chatting(ContactPage::Chat) {
+                            tracing::info!("Is on chat should transition to contacts");
+                        }
+                        tracing::info!("{:?}", app.selected_tab);
+
+                        match app.selected_tab {
+                            Tabline::Chatting(c) => Tabline::Chatting(c.left()),
+                            Tabline::FriendRequests(f) => unimplemented!(),
+                        }
+                    }
+                    Key::RIGHT => match app.selected_tab {
+                        Tabline::Chatting(c) => Tabline::Chatting(c.right()),
+                        Tabline::FriendRequests(f) => unimplemented!(),
+                    },
+                    Key::UP => match app.selected_tab {
+                        Tabline::Chatting(c) => Tabline::Chatting(c.up()),
+                        Tabline::FriendRequests(f) => unimplemented!(),
+                    },
+                    Key::DOWN => match app.selected_tab {
+                        Tabline::Chatting(c) => Tabline::Chatting(c.down()),
+                        Tabline::FriendRequests(f) => unimplemented!(),
+                    },
+                    _ => unreachable!(),
+                };
+                return;
+            }
             _ => {}
         },
+        Event::Init => {}
         _ => {}
     };
+    match &mut app.selected_tab {
+        Tabline::Chatting(contact) => match contact {
+            ContactPage::ContactList => handle_contact_list(app, event),
+            ContactPage::Chat => handle_chat(app, event),
+            ContactPage::CallButton => handle_call_button(app, event),
+        },
+        Tabline::FriendRequests(fr) => match fr {
+            FriendRequestPage::RequestList => handle_request_list(app, event),
+            FriendRequestPage::Search => handle_search(app, event),
+        },
+    }
 }
-const TABLINE_LAYOUT: [Tabline; 2] = [Tabline::Chatting, Tabline::FriendRequests];
+fn handle_contact_list(app: &mut App, event: Event) {
+    if let Event::Key(key) = event {
+        match key.code {
+            Key::RIGHT => app.selected_tab = Tabline::Chatting(ContactPage::Chat),
+            Key::UP => app.selected_contact.select_previous(),
+            Key::DOWN | KeyCode::Enter => app.selected_contact.select_next(),
+            _ => unimplemented!(),
+        }
+    }
+}
+fn handle_chat(app: &mut App, event: Event) {
+    if let Event::Key(key) = event {
+        match key.code {
+            KeyCode::Backspace => {
+                app.chat_input.pop();
+            }
+            KeyCode::Enter => app.chat.push(Message {
+                content: app.chat_input.clone(),
+                id: uuid::Uuid::new_v4(),
+            }),
+            Char(ch) => app.chat_input.push(ch),
+            _ => unimplemented!(),
+        }
+    }
+}
+fn handle_call_button(app: &mut App, event: Event) {
+    unimplemented!();
+}
+fn handle_request_list(app: &mut App, event: Event) {
+    unimplemented!();
+}
+fn handle_search(app: &mut App, event: Event) {
+    unimplemented!();
+}
+trait MoveHorizontal {
+    fn left(self) -> Self;
+    fn right(self) -> Self;
+}
+trait MoveVertical {
+    fn up(self) -> Self;
+    fn down(self) -> Self;
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Tabline {
-    Chatting,
-    FriendRequests,
+    Chatting(ContactPage),
+    FriendRequests(FriendRequestPage),
 }
-// impl Default for Tabline {
-//     fn default() -> Self {
-// Self::Chatting(ContactPage::default())
-//     }
-// }
-impl Tabline {
-    fn left(&mut self) {}
-    fn right(&mut self) {}
-    fn up(&mut self) {}
-    fn down(&mut self) {}
+impl Default for Tabline {
+    fn default() -> Self {
+        Self::Chatting(ContactPage::default())
+    }
 }
-#[derive(Default)]
+impl MoveHorizontal for Tabline {
+    fn left(self) -> Self {
+        if let Self::FriendRequests(_) = self {
+            return Self::Chatting(ContactPage::default());
+        }
+        self
+    }
+    fn right(self) -> Self {
+        if let Self::Chatting(_) = self {
+            return Self::FriendRequests(FriendRequestPage::default());
+        }
+        self
+    }
+}
+impl MoveHorizontal for ContactPage {
+    fn left(self) -> Self {
+        match self {
+            Self::Chat => Self::ContactList,
+            Self::CallButton => Self::ContactList,
+            _ => self,
+        }
+    }
+    fn right(self) -> Self {
+        match self {
+            Self::ContactList => Self::Chat,
+            _ => self,
+        }
+    }
+}
+impl MoveVertical for ContactPage {
+    fn up(self) -> Self {
+        match self {
+            Self::Chat => Self::CallButton,
+            _ => self,
+        }
+    }
+    fn down(self) -> Self {
+        match self {
+            Self::CallButton => Self::Chat,
+            _ => self,
+        }
+    }
+}
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug)]
 enum ContactPage {
     #[default]
     ContactList,
     Chat,
     CallButton,
 }
-#[derive(Default)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug)]
 enum FriendRequestPage {
     #[default]
     RequestList,
@@ -186,6 +319,10 @@ fn ui(f: &mut Frame, app: &mut App) {
         .direction(Direction::Horizontal)
         .constraints(vec![Constraint::Percentage(20), Constraint::Fill(1)])
         .split(layout[1]);
+    let chat_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![Constraint::Fill(1), Constraint::Length(3)])
+        .split(main_layout[1]);
     // contacts
     let contact_layout = Layout::default()
         .direction(Direction::Horizontal)
@@ -206,16 +343,23 @@ fn ui(f: &mut Frame, app: &mut App) {
     let contact_scroll_bar =
         Scrollbar::default().orientation(ratatui::widgets::ScrollbarOrientation::VerticalLeft);
     f.render_stateful_widget(contact_scroll_bar, contact_layout[0], &mut scrollbar_state);
+
+    // chat
+    let chat_input = Paragraph::new(app.chat_input.clone()).block(Block::bordered());
+    let messages = app.chat.iter().map(|m| Text::raw(m.content.clone()));
+    let chat_log = List::new(messages).block(Block::bordered());
+    f.render_widget(chat_log, chat_layout[0]);
+    f.render_widget(chat_input, chat_layout[1]);
     // friend list
 }
 // App state
 struct App {
     selected_tab: Tabline,
-    contact_page: ContactPage,
-    friend_request_page: FriendRequestPage,
     selected_contact: ListState,
     contacts: Vec<String>,
     should_quit: bool,
+    chat: Vec<Message>,
+    chat_input: String,
 }
 pub async fn run() -> anyhow::Result<()> {
     // ratatui terminal
@@ -225,11 +369,20 @@ pub async fn run() -> anyhow::Result<()> {
     // application state
     let mut app = App {
         selected_tab: Tabline::default(),
-        friend_request_page: FriendRequestPage::default(),
-        contact_page: ContactPage::default(),
         should_quit: false,
         contacts: vec!["Mark".to_string(), "Zuckerlizard".to_string()],
         selected_contact: ListState::default().with_selected(Some(0)),
+        chat: vec![
+            Message {
+                content: "Mark: adadadada adadad".to_string(),
+                id: uuid::Uuid::new_v4(),
+            },
+            Message {
+                content: "You: wtf".to_string(),
+                id: uuid::Uuid::new_v4(),
+            },
+        ],
+        chat_input: String::new(),
     };
 
     loop {
