@@ -1,19 +1,25 @@
+mod types;
 mod widgets;
-use crate::network::chat::Message;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEventKind;
 use crossterm::event::KeyModifiers;
 use futures::{FutureExt, StreamExt};
+use libp2p::PeerId;
 use ratatui::Frame;
 use ratatui::crossterm::event::KeyCode::Char;
 use ratatui::crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::Style;
 use ratatui::text::Text;
+use ratatui::widgets::Paragraph;
 use ratatui::widgets::{Block, List, ListDirection, ListState, Scrollbar, ScrollbarState};
-use ratatui::{prelude::CrosstermBackend, widgets::Paragraph};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
+use types::Message;
+
+use crate::network::Client;
+use crate::tui::types::Contact;
 
 #[derive(Clone, Debug)]
 pub enum Event {
@@ -29,6 +35,7 @@ pub enum Event {
     Key(KeyEvent),
     Mouse(MouseEvent),
     Resize(u16, u16),
+    MessageReceived(Message),
 }
 pub struct Tui {
     pub terminal: ratatui::DefaultTerminal,
@@ -113,6 +120,9 @@ impl Tui {
             task: None,
         }
     }
+    pub fn event_tx(&self) -> UnboundedSender<Event> {
+        self.event_tx.clone()
+    }
     pub async fn next(&mut self) -> Option<Event> {
         return self.event_rx.recv().await;
     }
@@ -137,6 +147,7 @@ fn handle_event(app: &mut App, event: Event) {
         Event::Key(key) => match (key.code, key.modifiers) {
             (KeyCode::Esc, KeyModifiers::NONE) => {
                 app.should_quit = true;
+                app.token.cancel();
                 return;
             }
             (Key::LEFT, KeyModifiers::SHIFT) => {
@@ -182,7 +193,7 @@ fn handle_event(app: &mut App, event: Event) {
         Event::Init => {}
         _ => {}
     };
-    match &mut app.selected_tab {
+    match &app.selected_tab {
         Tabline::Chatting(contact) => match contact {
             ContactPage::ContactList => handle_contact_list(app, event),
             ContactPage::Chat => handle_chat(app, event),
@@ -211,6 +222,10 @@ fn handle_chat(app: &mut App, event: Event) {
                 app.chat_input.pop();
             }
             KeyCode::Enter => app.chat.push(Message {
+                sender: Contact {
+                    peer_id: app.client.id,
+                    name: "You".to_string(),
+                },
                 content: app.chat_input.clone(),
                 id: uuid::Uuid::new_v4(),
             }),
@@ -346,7 +361,10 @@ fn ui(f: &mut Frame, app: &mut App) {
 
     // chat
     let chat_input = Paragraph::new(app.chat_input.clone()).block(Block::bordered());
-    let messages = app.chat.iter().map(|m| Text::raw(m.content.clone()));
+    let messages = app
+        .chat
+        .iter()
+        .map(|m| Text::raw(format!("{}: {}", m.sender.name, m.content)));
     let chat_log = List::new(messages).block(Block::bordered());
     f.render_widget(chat_log, chat_layout[0]);
     f.render_widget(chat_input, chat_layout[1]);
@@ -360,8 +378,10 @@ struct App {
     should_quit: bool,
     chat: Vec<Message>,
     chat_input: String,
+    client: Client,
+    token: CancellationToken,
 }
-pub async fn run() -> anyhow::Result<()> {
+pub async fn run(client: Client, token: CancellationToken) -> anyhow::Result<()> {
     // ratatui terminal
     let mut tui = Tui::new();
     tui.start();
@@ -370,19 +390,19 @@ pub async fn run() -> anyhow::Result<()> {
     let mut app = App {
         selected_tab: Tabline::default(),
         should_quit: false,
+        client,
         contacts: vec!["Mark".to_string(), "Zuckerlizard".to_string()],
         selected_contact: ListState::default().with_selected(Some(0)),
-        chat: vec![
-            Message {
-                content: "Mark: adadadada adadad".to_string(),
-                id: uuid::Uuid::new_v4(),
+        chat: vec![Message {
+            sender: Contact {
+                peer_id: PeerId::random(),
+                name: "Mark".to_string(),
             },
-            Message {
-                content: "You: wtf".to_string(),
-                id: uuid::Uuid::new_v4(),
-            },
-        ],
+            content: "adadadada adadad".to_string(),
+            id: uuid::Uuid::new_v4(),
+        }],
         chat_input: String::new(),
+        token,
     };
 
     loop {

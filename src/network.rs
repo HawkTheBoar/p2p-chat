@@ -82,6 +82,7 @@ pub(crate) async fn new(
         settings: settings.clone(),
         command_sender: command_tx,
         keys: id.clone(),
+        id: PeerId::from_public_key(&id.public()),
     };
     let event_loop = EventLoop::new(swarm, command_rx, event_tx, settings, id);
     (event_loop, client, event_rx)
@@ -119,6 +120,7 @@ pub(crate) struct Client {
     pub command_sender: mpsc::Sender<Command>,
     settings: Arc<tokio::sync::RwLock<HashMap<SettingName, Setting>>>,
     keys: Keypair,
+    pub id: PeerId,
 }
 impl EventLoop {
     fn new(
