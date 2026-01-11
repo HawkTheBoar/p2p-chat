@@ -1,10 +1,19 @@
 use libp2p::PeerId;
+
+#[derive(Debug, Clone)]
+pub enum MessageStatus {
+    ReceivedNotRead,
+    ReceivedRead,
+    SentOffNotRead,
+    SentOffRead,
+}
 #[derive(Debug, Clone)]
 pub struct Message {
     pub content: String,
     pub id: uuid::Uuid,
     pub sender: Contact,
-    // date
+    pub status: MessageStatus,
+    // TODO: date
 }
 #[derive(Debug, Clone)]
 pub struct Contact {

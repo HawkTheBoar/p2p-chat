@@ -2,12 +2,8 @@ mod network;
 mod settings;
 mod tui;
 use libp2p::{PeerId, identity::ed25519::PublicKey};
-use settings::{SettingName, SettingValue};
 use std::{collections::HashMap, error::Error, sync::Arc};
-use tokio::{
-    io::{self, AsyncBufReadExt},
-    sync::RwLock,
-};
+use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
@@ -21,7 +17,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_writer(std::io::stderr)
         .init();
     let identities = Arc::new(RwLock::new(HashMap::<PeerId, PublicKey>::new()));
-    let mut settings = Settings::load().await;
+    let settings = Settings::load().await;
     // Settings::save(&settings).await;
     let settings = Arc::new(RwLock::new(settings));
     let (event_loop, client, mut network_event) =
@@ -40,14 +36,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Some(event) = network_event.recv() => {
                 match event {
                     Event::InboundMessage { message, sender } => {
-                        println!("{}: {}", sender.to_bytes().iter().map(|b| b.to_string()).collect::<String>(),message.content);
+                        tracing::info!("recived message: {}: {}", sender.to_bytes().iter().map(|b| b.to_string()).collect::<String>(), message.content);
                     }
                     Event::OutboundMessageReceived { message_id } => {
-                        println!("{} message was received!", message_id);
+                        tracing::info!("{} message was received!", message_id);
                     },
                     Event::OutboundMessageInvalidSignature { message_id } => {
-                        println!("outbound messsage has invalid sig");
-                    }
+                        tracing::info!("outbound messsage has invalid sig");
+                    },
                 }
             }
         }
