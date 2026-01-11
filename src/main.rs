@@ -1,3 +1,4 @@
+mod db;
 mod network;
 mod settings;
 mod tui;
