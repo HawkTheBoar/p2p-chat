@@ -1,4 +1,4 @@
-mod types;
+pub mod types;
 mod widgets;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEventKind;
@@ -36,6 +36,8 @@ pub enum Event {
     Mouse(MouseEvent),
     Resize(u16, u16),
     MessageReceived(Message),
+    // TODO: do like refresh contact list from sqlite instead
+    AddContact(Contact),
 }
 pub struct Tui {
     pub terminal: ratatui::DefaultTerminal,
@@ -140,7 +142,7 @@ impl Key {
     const UP: KeyCode = Char('k');
     const DOWN: KeyCode = Char('j');
 }
-fn handle_event(app: &mut App, event: Event) {
+async fn handle_event(app: &mut App, event: Event) {
     // switch tabline -> SHIFT + H/L
     // switch between selectable widgets -> CTRL + H/J/K/L
     match event {
@@ -190,13 +192,23 @@ fn handle_event(app: &mut App, event: Event) {
             }
             _ => {}
         },
+        Event::MessageReceived(message) => {
+            // TODO: actually handle
+            app.chat.push(message);
+            return;
+        }
+        Event::AddContact(contact) => {
+            // TODO: actually handle
+            app.contacts.push(contact);
+            return;
+        }
         Event::Init => {}
         _ => {}
     };
     match &app.selected_tab {
         Tabline::Chatting(contact) => match contact {
             ContactPage::ContactList => handle_contact_list(app, event),
-            ContactPage::Chat => handle_chat(app, event),
+            ContactPage::Chat => handle_chat(app, event).await,
             ContactPage::CallButton => handle_call_button(app, event),
         },
         Tabline::FriendRequests(fr) => match fr {
@@ -215,21 +227,30 @@ fn handle_contact_list(app: &mut App, event: Event) {
         }
     }
 }
-fn handle_chat(app: &mut App, event: Event) {
+async fn handle_chat(app: &mut App, event: Event) {
     if let Event::Key(key) = event {
         match key.code {
             KeyCode::Backspace => {
                 app.chat_input.pop();
             }
-            KeyCode::Enter => app.chat.push(Message {
-                sender: Contact {
-                    peer_id: app.client.id,
-                    name: "You".to_string(),
-                },
-                content: app.chat_input.clone(),
-                id: uuid::Uuid::new_v4(),
-                status: types::MessageStatus::SentOffNotRead,
-            }),
+            KeyCode::Enter => {
+                let receiver = app
+                    .contacts
+                    .get(app.selected_contact.selected().unwrap())
+                    .unwrap();
+                app.client
+                    .send_message(receiver.peer_id, app.chat_input.clone())
+                    .await;
+                app.chat.push(Message {
+                    sender: Contact {
+                        peer_id: app.client.id,
+                        name: "You".to_string(),
+                    },
+                    content: app.chat_input.clone(),
+                    id: uuid::Uuid::new_v4(),
+                    status: types::MessageStatus::SentOffNotRead,
+                });
+            }
             Char(ch) => app.chat_input.push(ch),
             _ => unimplemented!(),
         }
@@ -345,7 +366,7 @@ fn ui(f: &mut Frame, app: &mut App) {
         .constraints(vec![Constraint::Length(2), Constraint::Fill(1)])
         .split(main_layout[0]);
 
-    let contact_list = List::new(app.contacts.clone())
+    let contact_list = List::new(app.contacts.iter().map(|c| c.name.clone()))
         .block(Block::bordered().title("Contacts"))
         .style(Style::new().white())
         .highlight_style(Style::new().italic())
@@ -375,16 +396,15 @@ fn ui(f: &mut Frame, app: &mut App) {
 struct App {
     selected_tab: Tabline,
     selected_contact: ListState,
-    contacts: Vec<String>,
+    contacts: Vec<Contact>,
     should_quit: bool,
     chat: Vec<Message>,
     chat_input: String,
     client: Client,
     token: CancellationToken,
 }
-pub async fn run(client: Client, token: CancellationToken) -> anyhow::Result<()> {
+pub async fn run(client: Client, token: CancellationToken, mut tui: Tui) -> anyhow::Result<()> {
     // ratatui terminal
-    let mut tui = Tui::new();
     tui.start();
 
     // application state
@@ -392,7 +412,13 @@ pub async fn run(client: Client, token: CancellationToken) -> anyhow::Result<()>
         selected_tab: Tabline::default(),
         should_quit: false,
         client,
-        contacts: vec!["Mark".to_string(), "Zuckerlizard".to_string()],
+        contacts: vec![
+            Contact {
+                name: "Mark".to_string(),
+                peer_id: PeerId::random(),
+            },
+            // "Zuckerlizard".to_string(),
+        ],
         selected_contact: ListState::default().with_selected(Some(0)),
         chat: vec![Message {
             sender: Contact {
@@ -413,7 +439,7 @@ pub async fn run(client: Client, token: CancellationToken) -> anyhow::Result<()>
             continue;
         };
         // application update
-        handle_event(&mut app, event);
+        handle_event(&mut app, event).await;
 
         tui.terminal.draw(|f| {
             ui(f, &mut app);

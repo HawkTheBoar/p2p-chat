@@ -4,6 +4,7 @@
 pkgs.mkShellNoCC {
   name = "p2pchat";
   packages = with pkgs; [
+    sqlite
     bacon
     cargo
     clippy

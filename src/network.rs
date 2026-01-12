@@ -9,7 +9,10 @@ use libp2p::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{RwLock, mpsc};
+use tokio::sync::{
+    RwLock,
+    mpsc::{self, UnboundedSender},
+};
 use uuid::Uuid;
 
 use crate::{
@@ -34,6 +37,7 @@ pub enum Command {
 pub(crate) async fn new(
     identities: Arc<RwLock<HashMap<PeerId, PublicKey>>>,
     settings: Arc<RwLock<HashMap<SettingName, Setting>>>,
+    tui_tx: UnboundedSender<crate::tui::Event>,
 ) -> (EventLoop, Client, mpsc::Receiver<Event>) {
     // TODO: Confiugre properly & handle errors
     // Dont generate identities on every run, create a store
@@ -84,7 +88,7 @@ pub(crate) async fn new(
         keys: id.clone(),
         id: PeerId::from_public_key(&id.public()),
     };
-    let event_loop = EventLoop::new(swarm, command_rx, event_tx, settings, id);
+    let event_loop = EventLoop::new(swarm, command_rx, event_tx, settings, id, tui_tx);
     (event_loop, client, event_rx)
 }
 #[derive(Debug)]
@@ -114,6 +118,7 @@ pub struct EventLoop {
     event_sender: mpsc::Sender<Event>,
     settings: Arc<tokio::sync::RwLock<HashMap<SettingName, Setting>>>,
     keys: Keypair,
+    tui_tx: UnboundedSender<crate::tui::Event>,
 }
 #[derive(Clone)]
 pub(crate) struct Client {
@@ -129,6 +134,7 @@ impl EventLoop {
         event_sender: mpsc::Sender<Event>,
         settings: Arc<tokio::sync::RwLock<HashMap<SettingName, Setting>>>,
         keys: Keypair,
+        tui_tx: UnboundedSender<crate::tui::Event>,
     ) -> Self {
         EventLoop {
             swarm,
@@ -136,6 +142,7 @@ impl EventLoop {
             event_sender,
             settings,
             keys,
+            tui_tx,
         }
     }
     pub async fn run(mut self) {
@@ -156,6 +163,12 @@ impl EventLoop {
             SwarmEvent::Behaviour(BehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
                 for (peer_id, _multiaddr) in list {
                     tracing::info!("{peer_id} peer connected!");
+                    let _ = self.tui_tx.send(crate::tui::Event::AddContact(
+                        crate::tui::types::Contact {
+                            peer_id,
+                            name: "Anonymous".to_string(),
+                        },
+                    ));
                 }
             }
             SwarmEvent::Behaviour(BehaviourEvent::Mdns(mdns::Event::Expired(list))) => {

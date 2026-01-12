@@ -1,0 +1,369 @@
+   Compiling ring v0.17.14
+   Compiling libsqlite3-sys v0.35.0
+   Compiling rusqlite v0.37.0
+   Compiling tokio-rusqlite v0.7.0
+   Compiling rustls v0.23.34
+   Compiling snow v0.9.6
+   Compiling rustls-webpki v0.103.8
+   Compiling rcgen v0.13.2
+   Compiling libp2p-noise v0.46.1
+   Compiling futures-rustls v0.26.0
+   Compiling quinn-proto v0.11.13
+   Compiling libp2p-tls v0.6.2
+   Compiling quinn v0.11.9
+   Compiling libp2p-quic v0.13.0
+   Compiling libp2p v0.56.0
+   Compiling p2pchat v0.1.0 (/home/mistr/code/rust/tokio/p2p-chat)
+warning: unused import: `signable::Signed`
+ --> src/network/friends.rs:4:41
+  |
+4 | use crate::network::{Client, EventLoop, signable::Signed};
+  |                                         ^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `Setting`
+ --> src/main.rs:8:16
+  |
+8 |     settings::{Setting, Settings},
+  |                ^^^^^^^
+
+warning: unused variable: `receiver`
+  --> src/network/chat.rs:41:40
+   |
+41 |             ChatCommand::ReadMessage { receiver } => {
+   |                                        ^^^^^^^^ help: try ignoring the field: `receiver: _`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `identities`
+  --> src/network.rs:38:5
+   |
+38 |     identities: Arc<RwLock<HashMap<PeerId, PublicKey>>>,
+   |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_identities`
+
+warning: unused variable: `peer`
+   --> src/network.rs:226:17
+    |
+226 |                 peer,
+    |                 ^^^^ help: try ignoring the field: `peer: _`
+
+warning: unused variable: `connection_id`
+   --> src/network.rs:227:17
+    |
+227 |                 connection_id,
+    |                 ^^^^^^^^^^^^^ help: try ignoring the field: `connection_id: _`
+
+warning: unused variable: `request_id`
+   --> src/network.rs:231:21
+    |
+231 |                     request_id,
+    |                     ^^^^^^^^^^ help: try ignoring the field: `request_id: _`
+
+warning: unused variable: `decision`
+   --> src/network.rs:281:51
+    |
+281 |                     FriendRequest::AcceptFriend { decision } => {
+    |                                                   ^^^^^^^^ help: try ignoring the field: `decision: _`
+
+warning: unused variable: `request_id`
+   --> src/network.rs:300:21
+    |
+300 |                     request_id,
+    |                     ^^^^^^^^^^ help: try ignoring the field: `request_id: _`
+
+warning: unused variable: `sender`
+   --> src/network.rs:303:40
+    |
+303 |                     if let Some((resp, sender)) = response.verify() {
+    |                                        ^^^^^^ help: if this is intentional, prefix it with an underscore: `_sender`
+
+warning: unused variable: `name`
+   --> src/network.rs:305:59
+    |
+305 | ...                   FriendResponse::RequestName { name } => {}
+    |                                                     ^^^^ help: try ignoring the field: `name: _`
+
+warning: unused variable: `name`
+   --> src/network.rs:306:56
+    |
+306 | ...                   FriendResponse::VerifyName(name) => {}
+    |                                                  ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `err`
+  --> src/settings.rs:65:17
+   |
+65 |             Err(err) => {
+   |                 ^^^ help: if this is intentional, prefix it with an underscore: `_err`
+
+warning: unused variable: `setting`
+  --> src/settings.rs:82:25
+   |
+82 |             if let Some(setting) = user_settings.get_mut(&opt_key) {
+   |                         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_setting`
+
+warning: unused variable: `f`
+   --> src/tui.rs:174:53
+    |
+174 | ...                   Tabline::FriendRequests(f) => unimplemented!(),
+    |                                               ^ help: if this is intentional, prefix it with an underscore: `_f`
+
+warning: unused variable: `f`
+   --> src/tui.rs:179:49
+    |
+179 |                         Tabline::FriendRequests(f) => unimplemented!(),
+    |                                                 ^ help: if this is intentional, prefix it with an underscore: `_f`
+
+warning: unused variable: `f`
+   --> src/tui.rs:183:49
+    |
+183 |                         Tabline::FriendRequests(f) => unimplemented!(),
+    |                                                 ^ help: if this is intentional, prefix it with an underscore: `_f`
+
+warning: unused variable: `f`
+   --> src/tui.rs:187:49
+    |
+187 |                         Tabline::FriendRequests(f) => unimplemented!(),
+    |                                                 ^ help: if this is intentional, prefix it with an underscore: `_f`
+
+warning: unused variable: `app`
+   --> src/tui.rs:259:23
+    |
+259 | fn handle_call_button(app: &mut App, event: Event) {
+    |                       ^^^ help: if this is intentional, prefix it with an underscore: `_app`
+
+warning: unused variable: `event`
+   --> src/tui.rs:259:38
+    |
+259 | fn handle_call_button(app: &mut App, event: Event) {
+    |                                      ^^^^^ help: if this is intentional, prefix it with an underscore: `_event`
+
+warning: unused variable: `app`
+   --> src/tui.rs:262:24
+    |
+262 | fn handle_request_list(app: &mut App, event: Event) {
+    |                        ^^^ help: if this is intentional, prefix it with an underscore: `_app`
+
+warning: unused variable: `event`
+   --> src/tui.rs:262:39
+    |
+262 | fn handle_request_list(app: &mut App, event: Event) {
+    |                                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_event`
+
+warning: unused variable: `app`
+   --> src/tui.rs:265:18
+    |
+265 | fn handle_search(app: &mut App, event: Event) {
+    |                  ^^^ help: if this is intentional, prefix it with an underscore: `_app`
+
+warning: unused variable: `event`
+   --> src/tui.rs:265:33
+    |
+265 | fn handle_search(app: &mut App, event: Event) {
+    |                                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_event`
+
+warning: unused variable: `message_id`
+  --> src/main.rs:59:62
+   |
+59 |                     Event::OutboundMessageInvalidSignature { message_id } => {
+   |                                                              ^^^^^^^^^^ help: try ignoring the field: `message_id: _`
+
+warning: function `migrate` is never used
+ --> src/db/migrate_db.rs:4:10
+  |
+4 | async fn migrate(conn: &Connection) -> Result<()> {
+  |          ^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: variant `FriendCommand` is never constructed
+  --> src/network.rs:35:5
+   |
+33 | pub enum Command {
+   |          ------- variant in this enum
+34 |     ChatCommand(ChatCommand),
+35 |     FriendCommand(FriendCommand),
+   |     ^^^^^^^^^^^^^
+
+warning: field `settings` is never read
+   --> src/network.rs:126:5
+    |
+124 | pub(crate) struct Client {
+    |                   ------ field in this struct
+125 |     pub command_sender: mpsc::Sender<Command>,
+126 |     settings: Arc<tokio::sync::RwLock<HashMap<SettingName, Setting>>>,
+    |     ^^^^^^^^
+    |
+    = note: `Client` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: variant `ReadMessage` is never constructed
+  --> src/network/chat.rs:28:5
+   |
+23 | pub enum ChatCommand {
+   |          ----------- variant in this enum
+...
+28 |     ReadMessage {
+   |     ^^^^^^^^^^^
+
+warning: variants `RequestName`, `VerifyName`, `AddFriend`, and `AcceptFriend` are never constructed
+  --> src/network/friends.rs:20:5
+   |
+19 | pub enum FriendCommand {
+   |          ------------- variants in this enum
+20 |     RequestName { peer: PeerId },
+   |     ^^^^^^^^^^^
+21 |     VerifyName { name: String, peer: PeerId },
+   |     ^^^^^^^^^^
+22 |     AddFriend { peer: PeerId },
+   |     ^^^^^^^^^
+23 |     AcceptFriend { peer: PeerId, decision: bool },
+   |     ^^^^^^^^^^^^
+
+warning: methods `request_name`, `verify_name`, `send_friend_request`, `accept_friend_req`, and `deny_friend_req` are never used
+  --> src/network/friends.rs:52:14
+   |
+51 | impl Client {
+   | ----------- methods in this implementation
+52 |     async fn request_name(&mut self, peer: PeerId) {
+   |              ^^^^^^^^^^^^
+...
+60 |     async fn verify_name(&mut self, peer: PeerId, name: String) {
+   |              ^^^^^^^^^^^
+...
+69 |     async fn send_friend_request(&mut self, peer: PeerId) {
+   |              ^^^^^^^^^^^^^^^^^^^
+...
+77 |     async fn accept_friend_req(&mut self, peer: PeerId) {
+   |              ^^^^^^^^^^^^^^^^^
+...
+86 |     async fn deny_friend_req(&mut self, peer: PeerId) {
+   |              ^^^^^^^^^^^^^^^
+
+warning: method `set_value` is never used
+  --> src/settings.rs:47:12
+   |
+41 | impl Setting {
+   | ------------ method in this implementation
+...
+47 |     pub fn set_value(&mut self, val: SettingValue) -> std::io::Result<()> {
+   |            ^^^^^^^^^
+
+warning: associated function `save` is never used
+  --> src/settings.rs:91:18
+   |
+53 | impl Settings {
+   | ------------- associated function in this implementation
+...
+91 |     pub async fn save(settings: &HashMap<SettingName, Setting>) {
+   |                  ^^^^
+
+warning: multiple variants are never constructed
+  --> src/tui.rs:27:5
+   |
+25 | pub enum Event {
+   |          ----- variants in this enum
+26 |     Init,
+27 |     Quit,
+   |     ^^^^
+28 |     Error,
+29 |     Closed,
+   |     ^^^^^^
+30 |     Tick,
+   |     ^^^^
+31 |     Render,
+   |     ^^^^^^
+32 |     FocusGained,
+   |     ^^^^^^^^^^^
+33 |     FocusLost,
+   |     ^^^^^^^^^
+34 |     Paste(String),
+   |     ^^^^^
+35 |     Key(KeyEvent),
+36 |     Mouse(MouseEvent),
+   |     ^^^^^
+37 |     Resize(u16, u16),
+   |     ^^^^^^
+   |
+   = note: `Event` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `frame_rate` and `tick_rate` are never read
+  --> src/tui.rs:47:9
+   |
+42 | pub struct Tui {
+   |            --- fields in this struct
+...
+47 |     pub frame_rate: f64,
+   |         ^^^^^^^^^^
+48 |     pub tick_rate: f64,
+   |         ^^^^^^^^^
+
+warning: method `event_tx` is never used
+   --> src/tui.rs:125:12
+    |
+51  | impl Tui {
+    | -------- method in this implementation
+...
+125 |     pub fn event_tx(&self) -> UnboundedSender<Event> {
+    |            ^^^^^^^^
+
+warning: variant `Search` is never constructed
+   --> src/tui.rs:340:5
+    |
+337 | enum FriendRequestPage {
+    |      ----------------- variant in this enum
+...
+340 |     Search,
+    |     ^^^^^^
+    |
+    = note: `FriendRequestPage` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: variant `SentOffRead` is never constructed
+ --> src/tui/types.rs:8:5
+  |
+4 | pub enum MessageStatus {
+  |          ------------- variant in this enum
+...
+8 |     SentOffRead,
+  |     ^^^^^^^^^^^
+  |
+  = note: `MessageStatus` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `id` and `status` are never read
+  --> src/tui/types.rs:13:9
+   |
+11 | pub struct Message {
+   |            ------- fields in this struct
+12 |     pub content: String,
+13 |     pub id: uuid::Uuid,
+   |         ^^
+14 |     pub sender: Contact,
+15 |     pub status: MessageStatus,
+   |         ^^^^^^
+   |
+   = note: `Message` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: struct `ScrollableList` is never constructed
+ --> src/tui/widgets.rs:1:8
+  |
+1 | struct ScrollableList<T>
+  |        ^^^^^^^^^^^^^^
+
+warning: `p2pchat` (bin "p2pchat") generated 40 warnings (run `cargo fix --bin "p2pchat"` to apply 2 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.72s
+     Running `target/debug/p2pchat`
+[2m2026-01-12T08:03:28.356587Z[0m [32m INFO[0m [2mlibp2p_swarm[0m[2m:[0m [3mlocal_peer_id[0m[2m=[0m12D3KooWKATNQnBy3vEDjurNBibT8igQSYQGZ49EX1nyYVW4EMPS
+[2m2026-01-12T08:03:28.357336Z[0m [32m INFO[0m [2mlibp2p_mdns::behaviour::iface[0m[2m:[0m creating instance on iface address [3maddress[0m[2m=[0m192.168.17.138
+[2m2026-01-12T08:03:28.357475Z[0m [32m INFO[0m [2mlibp2p_mdns::behaviour::iface[0m[2m:[0m creating instance on iface address [3maddress[0m[2m=[0m172.17.0.1
+[2m2026-01-12T08:03:28.357546Z[0m [32m INFO[0m [2mlibp2p_mdns::behaviour::iface[0m[2m:[0m creating instance on iface address [3maddress[0m[2m=[0m172.20.0.1
+[2m2026-01-12T08:03:28.357703Z[0m [32m INFO[0m [2mp2pchat::network[0m[2m:[0m Local node is listening on /ip4/127.0.0.1/tcp/42495
+[2m2026-01-12T08:03:28.357748Z[0m [32m INFO[0m [2mp2pchat::network[0m[2m:[0m Local node is listening on /ip4/192.168.17.138/tcp/42495
+[2m2026-01-12T08:03:28.357778Z[0m [32m INFO[0m [2mp2pchat::network[0m[2m:[0m Local node is listening on /ip4/172.17.0.1/tcp/42495
+[2m2026-01-12T08:03:28.357812Z[0m [32m INFO[0m [2mp2pchat::network[0m[2m:[0m Local node is listening on /ip4/172.20.0.1/tcp/42495
+[2m2026-01-12T08:03:28.357922Z[0m [32m INFO[0m [2mp2pchat::network[0m[2m:[0m Local node is listening on /ip4/127.0.0.1/udp/51802/quic-v1
+[2m2026-01-12T08:03:28.357964Z[0m [32m INFO[0m [2mp2pchat::network[0m[2m:[0m Local node is listening on /ip4/192.168.17.138/udp/51802/quic-v1
+[2m2026-01-12T08:03:28.357995Z[0m [32m INFO[0m [2mp2pchat::network[0m[2m:[0m Local node is listening on /ip4/172.17.0.1/udp/51802/quic-v1
+[2m2026-01-12T08:03:28.358027Z[0m [32m INFO[0m [2mp2pchat::network[0m[2m:[0m Local node is listening on /ip4/172.20.0.1/udp/51802/quic-v1
+
+thread 'tokio-runtime-worker' panicked at src/tui.rs:226:18:
+not implemented
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
