@@ -1,3 +1,4 @@
 /target
 /docs/*.pdf
+docs/*.pdf
 trace.log
