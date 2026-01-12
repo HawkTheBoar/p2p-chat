@@ -161,14 +161,18 @@ impl EventLoop {
     async fn handle_event(&mut self, event: SwarmEvent<BehaviourEvent>) {
         match event {
             SwarmEvent::Behaviour(BehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
+                let mut known = Vec::<PeerId>::new();
                 for (peer_id, _multiaddr) in list {
                     tracing::info!("{peer_id} peer connected!");
-                    let _ = self.tui_tx.send(crate::tui::Event::AddContact(
-                        crate::tui::types::Contact {
-                            peer_id,
-                            name: "Anonymous".to_string(),
-                        },
-                    ));
+                    if !known.contains(&peer_id) {
+                        let _ = self.tui_tx.send(crate::tui::Event::AddContact(
+                            crate::tui::types::Contact {
+                                peer_id,
+                                name: "Anonymous".to_string(),
+                            },
+                        ));
+                        known.push(peer_id);
+                    }
                 }
             }
             SwarmEvent::Behaviour(BehaviourEvent::Mdns(mdns::Event::Expired(list))) => {

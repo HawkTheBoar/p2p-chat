@@ -199,7 +199,9 @@ async fn handle_event(app: &mut App, event: Event) {
         }
         Event::AddContact(contact) => {
             // TODO: actually handle
-            app.contacts.push(contact);
+            if !app.contacts.contains(&contact) {
+                app.contacts.push(contact);
+            }
             return;
         }
         Event::Init => {}
@@ -241,6 +243,7 @@ async fn handle_chat(app: &mut App, event: Event) {
                 app.client
                     .send_message(receiver.peer_id, app.chat_input.clone())
                     .await;
+                // add the message to our chat log
                 app.chat.push(Message {
                     sender: Contact {
                         peer_id: app.client.id,
@@ -250,6 +253,8 @@ async fn handle_chat(app: &mut App, event: Event) {
                     id: uuid::Uuid::new_v4(),
                     status: types::MessageStatus::SentOffNotRead,
                 });
+                // clear the chat input
+                app.chat_input.clear();
             }
             Char(ch) => app.chat_input.push(ch),
             _ => unimplemented!(),
@@ -376,13 +381,16 @@ fn ui(f: &mut Frame, app: &mut App) {
     f.render_stateful_widget(contact_list, contact_layout[1], &mut app.selected_contact);
 
     let vertical_scroll = app.selected_contact.selected().unwrap_or(0); // from app state
-    let mut scrollbar_state = ScrollbarState::new(app.contacts.len()).position(vertical_scroll);
+    let mut scrollbar_state =
+        ScrollbarState::new(contact_layout[1].y.into()).position(vertical_scroll);
     let contact_scroll_bar =
         Scrollbar::default().orientation(ratatui::widgets::ScrollbarOrientation::VerticalLeft);
+
     f.render_stateful_widget(contact_scroll_bar, contact_layout[0], &mut scrollbar_state);
 
     // chat
-    let chat_input = Paragraph::new(app.chat_input.clone()).block(Block::bordered());
+    let chat_input =
+        Paragraph::new(format!(" {} {}", ">", app.chat_input.clone())).block(Block::bordered());
     let messages = app
         .chat
         .iter()
@@ -413,22 +421,24 @@ pub async fn run(client: Client, token: CancellationToken, mut tui: Tui) -> anyh
         should_quit: false,
         client,
         contacts: vec![
-            Contact {
-                name: "Mark".to_string(),
-                peer_id: PeerId::random(),
-            },
+            // Contact {
+            //     name: "Mark".to_string(),
+            //     peer_id: PeerId::random(),
+            // },
             // "Zuckerlizard".to_string(),
         ],
         selected_contact: ListState::default().with_selected(Some(0)),
-        chat: vec![Message {
-            sender: Contact {
-                peer_id: PeerId::random(),
-                name: "Mark".to_string(),
-            },
-            content: "adadadada adadad".to_string(),
-            id: uuid::Uuid::new_v4(),
-            status: types::MessageStatus::ReceivedRead,
-        }],
+        chat: vec![
+        //     Message {
+        //     sender: Contact {
+        //         peer_id: PeerId::random(),
+        //         name: "Mark".to_string(),
+        //     },
+        //     content: "adadadada adadad".to_string(),
+        //     id: uuid::Uuid::new_v4(),
+        //     status: types::MessageStatus::ReceivedRead,
+        // }
+        ],
         chat_input: String::new(),
         token,
     };

@@ -24,6 +24,8 @@ pub enum FriendCommand {
 }
 impl EventLoop {
     pub async fn handle_friend_command(&mut self, command: FriendCommand) {
+        // TODO: Add everything to sqlite
+        // Send re-render of contact list to tui
         match command {
             FriendCommand::RequestName { peer } => self
                 .swarm

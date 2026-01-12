@@ -15,7 +15,7 @@ pub struct Message {
     pub status: MessageStatus,
     // TODO: date
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Contact {
     pub peer_id: PeerId,
     pub name: String,
