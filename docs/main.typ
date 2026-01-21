@@ -1,5 +1,5 @@
-#set page(width: 8.5in, height: 11in)
-= P2P Komunikační aplikace 
+// #set page(width: 8.5in, height: 11in)
+= P2P Komunikační aplikace
 vytvořil Michal Stránský
 
 pod vedením Ing. Zdeňka Drvoty
@@ -11,7 +11,7 @@ Zdokumentováno dne: 2026-01-11
 
 == Abstraktní Shrnutí
 
-Chatovací aplikace má fungovat převážně decentralizovaně, což znamená, že každý peer by měl komunikovat napřímo s ostatními.
+Chatovací aplikace má fungovat převážně decentralizovaně, což znamená, že každý peer by měl v ideálním případě komunikovat napřímo s tím s kým chce momentálně komunikovat.
 
 Aplikace má za cíl řešit problém ochrany soukromí při odesílání zpráv, které by mohly být čteny poskytovateli centralizovaných chatovacích aplikací, a uchovávání metadat, například kdy komunikujete s kým.
 
@@ -23,7 +23,7 @@ Hlavní technologie použité k vytvoření aplikace:
 - Sqlite (lokální úložiště)
 - mDNS (lokální vyhledávání peerů)
 - Noise (šifrování komunikace)
-- QUIC (hlavní přenosní protokol)
+- QUIC (hlavní transport protokol)
 
 Klíčové vlastnosti:
 - Konfigurovatelné TUI s ovládacími prvky podobným jako ve vimu
@@ -36,12 +36,16 @@ Klíčové vlastnosti:
 
 == Systémové požadavky a omezení
 
-V současné době je aplikace implementována pouze pro systémy typu UNIX.
+V současné době je aplikace určena pouze pro systémy typu podporující POSIX.
 
 == Pozadí
-=== Stávající chatovací systémy s podobným účelem
-Matrix
-
+=== Stávající chatovací systémy s podobným účelem, ale jiným zpracováním
+==== Matrix
+- open-source
+- každý může hostovat server který se zapojuje do decentralizovaného systému serverů, uživatelé komunikují pomocí těchto serverů //TODO
+==== Keet by HolePunch 
+- není open-source
+- nemá implementaci persistant message storage přes DHT, tudíž přenos zpráv může proběhnout pouze když jsou oba uživatelé přístupní
 === Protokoly
 ==== QUIC
 ==== Noise
