@@ -1,17 +1,18 @@
 // #set page(width: 8.5in, height: 11in)
-= P2P Komunikační aplikace
-vytvořil Michal Stránský
-
+= Komunikační aplikace s zaměřením na soukromí prostřednictvím decentralizace
+Michal Stránský
+Třída: 4.B
+Obor: Informační technologie (18-20-M/01)
 pod vedením Ing. Zdeňka Drvoty
 
-Instituce: Delta škola SŠIE
+Instituce: DELTA – Střední škola informatiky a ekonomie, s.r.o. Ke Kamenci 151, Pardubice 
 Zdokumentováno dne: 2026-01-11
 
 
 
-== Abstraktní Shrnutí
+== Úvod
 
-Chatovací aplikace má fungovat převážně decentralizovaně, což znamená, že každý peer by měl v ideálním případě komunikovat napřímo s tím s kým chce momentálně komunikovat.
+Chatovací aplikace má fungovat převážně decentralizovaně, což znamená, že každý peer by měl v ideálním případě komunikovat napřímo s tím s kým chce momentálně komunikovat. V případě 
 
 Aplikace má za cíl řešit problém ochrany soukromí při odesílání zpráv, které by mohly být čteny poskytovateli centralizovaných chatovacích aplikací, a uchovávání metadat, například kdy komunikujete s kým.
 
@@ -29,10 +30,6 @@ Klíčové vlastnosti:
 - Konfigurovatelné TUI s ovládacími prvky podobným jako ve vimu
 - něco
 - něco
-
-
-== Úvod
-
 
 == Systémové požadavky a omezení
 
